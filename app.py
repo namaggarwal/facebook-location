@@ -35,6 +35,9 @@ def message():
                 responseMessage += 'Your location is '+str(coordinates['lat'])+','+str(coordinates['long'])
 
         if 'text' in message:
+            if message['text'] == 'Hi':
+                sendAskForLocation(senderId)
+                return "Ok"
             responseMessage = 'You said,"'+message['text']+'"'
         
         sendResponse(senderId,responseMessage)
@@ -43,6 +46,29 @@ def message():
         
 
     return responseMessage
+
+def sendAskForLocation(recipientId):
+
+    messageData = {
+        'recipient': {
+            'id': recipientId
+        },
+        'message': {
+            'text': 'Please share your location',
+            "quick_replies":[
+                {
+                    "content_type":"location",
+                }
+            ]
+        }
+    }
+
+    url = 'https://graph.facebook.com/v2.6/me/messages?access_token='+PAGE_ACCESS_TOKEN
+
+    r = requests.post(url, json = messageData)
+
+    print r.status_code
+
 
 def sendResponse(recipientId,message):
 
