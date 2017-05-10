@@ -4,12 +4,18 @@ import requests
 
 app = Flask(__name__)
 
-PAGE_ACCESS_TOKEN = 'EAAP91RO7gI0BANShZAIznz5Eksjj4QG2gLyJ2sCV7bk3btkevxIBocHRdZABWz0C0TYPjZCWsfz06A4xIUdnJ0T2A8cQRbKXx0gAsX0Wn1qOzb5ZChaIELE9ZC7G2eMDlFTZC4VWz3XoXzfG5dkAZBlRVG5ZAISIgWJ8BKZBP4Wuk5QZDZD'
+PAGE_ACCESS_TOKEN = 'b9e59541f0bb435e86c52a4a0c373d4a'
+API_AI_CLIENT_ACCESS_TOKEN = 'EAAaSNJZBwftIBAC1lYVgmOrlIVVjQnXmw4mXG77bg4tWvtZAeAxfx1owmj7rbiZAgG5GZBYotz7wUFE9mXCbGZBg0bPt1mvDmjcZBFnFKukLmZBaON2ajdot3iewuZCdBQYB6ibCo6MZASAiezhsUt6xZB9DTW2wtsKu7vwrivcnjnegZDZD'
+
+
+user = {
+
+}
 
 @app.route('/locationfinder',methods=['GET'])
 def verify():
 
-    if request.args['hub.verify_token'] == 'naman':
+    if request.args['hub.verify_token'] == 'rukmani':
         print request.args['hub.challenge']
         return request.args['hub.challenge']
     else:
@@ -17,6 +23,7 @@ def verify():
 
 @app.route('/locationfinder',methods=['POST'])
 def message():
+    print "Request received from facebook"
     messageObj = json.loads(request.data)
     entry = messageObj['entry'][0]
     responseMessage = ''
@@ -24,28 +31,104 @@ def message():
     if 'messaging' in entry:
         message = entry['messaging'][0]['message']
         senderId = entry['messaging'][0]['sender']['id']
-        if 'attachments' in message:
-
-            attachments = message['attachments'][0]
-
-            if attachments['type'] == 'location':
-
-                coordinates = attachments['payload']['coordinates']
-
-                responseMessage += 'Your location is '+str(coordinates['lat'])+','+str(coordinates['long'])
-
+        
+        #if it is a text message
         if 'text' in message:
-            if message['text'] == 'Hi':
-                sendAskForLocation(senderId)
-                return "Ok"
-            responseMessage = 'You said,"'+message['text']+'"'
+            reply(senderId,message['text'],False)
+
+            #apiResponse = sendToApiAi(message['text'],senderId)
+            #handleApiResponse(apiResponse,senderId)
+            
+
+
+        #If we get the location from user
+        if 'attachments' in message:
+            attachments = message['attachments'][0]
+            if attachments['type'] == 'location':
+                reply(senderId,attachments['payload']['coordinates'],True)
+
+                #coordinates = attachments['payload']['coordinates']
+                #responseMessage += 'Your location is '+str(coordinates['lat'])+','+str(coordinates['long'])
+                #sendResponse(responseMessage,senderId)
         
-        sendResponse(senderId,responseMessage)
+                
+
+    return "Success", 200
+
+
+
+
+def reply(senderId,messageData,isLocationMessage=False):
+
+    if senderId not in user:
+        user[str(senderId)] = {
+            'cuisine':None,
+            'location':None
+        }
+
+    if isLocationMessage:
+
+        user[senderId]['location'] = {
+            'lat': str(messageData['lat']),
+            'long': str(messageData['long'])
+        }
+
+        if user[senderId]['cuisine']:
+
+            #### Call rest api of that guy
+            sendRestaurantsList(senderId,user[senderId]['cuisine'])
+            return
+        
+        else:
+            responseMessage = "What are you looking to eat ?"
+            sendResponse(senderId,responseMessage)
     else:
-        responseMessage = 'I don\'t understand what you said'
+        apiResponse = sendToApiAi(messageData,senderId)
+        handleApiResponse(apiResponse,senderId)
+
+
+def sendToApiAi(text,senderId):
+
+    messageData = {
+        'query':text,
+        'lang':'en',
+        'sessionId':senderId
+    }
+
+    headers = {'Authorization': 'bearer '+API_AI_CLIENT_ACCESS_TOKEN}
+
+    url = 'https://api.api.ai/v1/query?v=20150910'
+
+    r = requests.post(url, json=messageData, headers = headers)
+
+    return r.json()
+
+
+def handleApiResponse(apiResponse,senderId):
+
+    responseMessage = "I don't understand what you said"
+    print apiResponse
+    if 'result' in apiResponse:
+        result = apiResponse['result']
+        
+        if 'action' in result:
+            action = result['action']
+
+            if action == 'looking':
+                
+                if 'cuisine' in result['parameters']:
+                    user[senderId]['cuisine'] = result['parameters']['cuisine']
+
+                    if user[senderId]['location']:
+                        sendRestaurantsList(senderId,user[senderId]['cuisine'])
+                        return
+                    else:
+                        sendAskForLocation(senderId)
+                        return
+    
+    sendResponse(senderId,responseMessage)
         
 
-    return responseMessage
 
 def sendAskForLocation(recipientId):
 
@@ -80,14 +163,16 @@ def sendResponse(recipientId,message):
             'text': message
         }
     }
-
     url = 'https://graph.facebook.com/v2.6/me/messages?access_token='+PAGE_ACCESS_TOKEN
-
     r = requests.post(url, json = messageData)
-
     print r.status_code
 
 
+def sendRestaurantsList(receipientId,cuisine):
+
+    responseMessage = "Finding all "+cuisine+" resturants near you"
+    sendResponse(receipientId,responseMessage)
+    del user[receipientId]
 
 
 if __name__ == '__main__':
