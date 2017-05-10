@@ -4,8 +4,8 @@ import requests
 
 app = Flask(__name__)
 
-PAGE_ACCESS_TOKEN = 'b9e59541f0bb435e86c52a4a0c373d4a'
-API_AI_CLIENT_ACCESS_TOKEN = 'EAAaSNJZBwftIBAC1lYVgmOrlIVVjQnXmw4mXG77bg4tWvtZAeAxfx1owmj7rbiZAgG5GZBYotz7wUFE9mXCbGZBg0bPt1mvDmjcZBFnFKukLmZBaON2ajdot3iewuZCdBQYB6ibCo6MZASAiezhsUt6xZB9DTW2wtsKu7vwrivcnjnegZDZD'
+PAGE_ACCESS_TOKEN = ''
+API_AI_CLIENT_ACCESS_TOKEN = ''
 
 
 user = {
